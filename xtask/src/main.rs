@@ -1,5 +1,6 @@
 mod build_ebpf;
 mod run;
+mod run_docker;
 
 use std::process::exit;
 
@@ -15,6 +16,7 @@ pub struct Options {
 enum Command {
     BuildEbpf(build_ebpf::Options),
     Run(run::Options),
+    RunDocker(run_docker::Options),
 }
 
 fn main() {
@@ -24,6 +26,7 @@ fn main() {
     let ret = match opts.command {
         BuildEbpf(opts) => build_ebpf::build_ebpf(opts),
         Run(opts) => run::run(opts),
+        RunDocker(opts) => run_docker::run_docker(opts),
     };
 
     if let Err(e) = ret {

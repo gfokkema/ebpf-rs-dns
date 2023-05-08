@@ -1,4 +1,4 @@
-use std::process::Command;
+use std::{path::{Path, PathBuf}, process::Command};
 
 use anyhow::Context as _;
 use clap::Parser;
@@ -7,18 +7,22 @@ use crate::build_ebpf::{build_ebpf, Architecture, Options as BuildOptions};
 
 #[derive(Debug, Parser)]
 pub struct Options {
-    /// Set the endianness of the BPF target
     #[clap(default_value = "bpfel-unknown-none", long)]
     pub bpf_target: Architecture,
-    /// Build and run the release target
     #[clap(long)]
     pub release: bool,
-    /// The command used to wrap your application
-    #[clap(short, long, default_value = "sudo -E")]
-    pub runner: String,
-    /// Arguments to pass to your application
-    #[clap(name = "args", last = true)]
-    pub run_args: Vec<String>,
+    #[clap(default_value = "eth0", long)]
+    pub intf: String,
+    #[clap(default_value = "archlinux", long)]
+    pub image: String,
+}
+
+fn project_root() -> PathBuf {
+    Path::new(&env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(1)
+        .unwrap()
+        .to_path_buf()
 }
 
 /// Build the project
@@ -36,7 +40,7 @@ fn build(opts: &Options) -> Result<(), anyhow::Error> {
 }
 
 /// Build and run the project
-pub fn run(opts: Options) -> Result<(), anyhow::Error> {
+pub fn run_docker(opts: Options) -> Result<(), anyhow::Error> {
     // build our ebpf program followed by our application
     build_ebpf(BuildOptions {
         target: opts.bpf_target,
@@ -48,22 +52,23 @@ pub fn run(opts: Options) -> Result<(), anyhow::Error> {
     let profile = if opts.release { "release" } else { "debug" };
     let bin_path = format!("target/{profile}/loader");
 
-    // arguments to pass to the application
-    let mut run_args: Vec<_> = opts.run_args.iter().map(String::as_str).collect();
+    let args = vec![
+        "run",
+        "--privileged",
+        "-e", "RUST_LOG=info",
+        "-v", "./target:/target",
+        "-it",
+        &opts.image,
+        &bin_path,
+        "-i", &opts.intf,
+    ];
 
-    // configure args
-    let mut args: Vec<_> = opts.runner.trim().split_terminator(' ').collect();
-    args.push(bin_path.as_str());
-    args.append(&mut run_args);
-
-    // run the command
-    let status = Command::new(args.first().expect("No first argument"))
-        .args(args.iter().skip(1))
+    // run the command inside a docker container
+    let status = Command::new("docker")
+        .current_dir(project_root())
+        .args(&args)
         .status()
-        .expect("failed to run the command");
-
-    if !status.success() {
-        anyhow::bail!("Failed to run `{}`", args.join(" "));
-    }
+        .expect("failed to run docker container");
+    assert!(status.success());
     Ok(())
 }
