@@ -1,4 +1,7 @@
-use std::{path::{Path, PathBuf}, process::Command};
+use std::{
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 use anyhow::Context as _;
 use clap::Parser;
@@ -45,7 +48,8 @@ pub fn run_docker(opts: Options) -> Result<(), anyhow::Error> {
     build_ebpf(BuildOptions {
         target: opts.bpf_target,
         release: opts.release,
-    }).context("Error while building eBPF program")?;
+    })
+    .context("Error while building eBPF program")?;
     build(&opts).context("Error while building userspace application")?;
 
     // profile we are building (release or debug)
@@ -55,12 +59,15 @@ pub fn run_docker(opts: Options) -> Result<(), anyhow::Error> {
     let args = vec![
         "run",
         "--privileged",
-        "-e", "RUST_LOG=info",
-        "-v", "./target:/target",
+        "-e",
+        "RUST_LOG=info",
+        "-v",
+        "./target:/target",
         "-it",
         &opts.image,
         &bin_path,
-        "-i", &opts.intf,
+        "-i",
+        &opts.intf,
     ];
 
     // run the command inside a docker container

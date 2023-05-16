@@ -44,15 +44,16 @@ async fn main() -> Result<(), anyhow::Error> {
     program.attach(&opt.iface, XdpFlags::default())
         .context("failed to attach the XDP program with default flags - try changing XdpFlags::default() to XdpFlags::SKB_MODE")?;
 
-    // 
+    //
     let mut blocklist: HashMap<_, u32, u32> = HashMap::try_from(bpf.map_mut("BLOCKLIST")?)?;
-    let mut blocklist_port: HashMap<_, u16, u8> = HashMap::try_from(bpf.map_mut("BLOCKLIST_PORT")?)?;
+    let mut blocklist_port: HashMap<_, u16, u8> =
+        HashMap::try_from(bpf.map_mut("BLOCKLIST_PORT")?)?;
 
-    // 
+    //
     let block_addr: u32 = Ipv4Addr::new(1, 1, 1, 1).try_into()?;
     let block_port: u16 = 53;
 
-    // 
+    //
     blocklist.insert(block_addr, 0, 0)?;
     blocklist_port.insert(block_port, 0, 0)?;
 
